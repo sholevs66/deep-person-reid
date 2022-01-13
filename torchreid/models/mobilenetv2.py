@@ -1,5 +1,6 @@
 from __future__ import division, absolute_import
 import torch.utils.model_zoo as model_zoo
+import torch
 from torch import nn
 from torch.nn import functional as F
 
@@ -121,6 +122,7 @@ class MobileNetV2(nn.Module):
         self.fc = self._construct_fc_layer(
             fc_dims, self.feature_dim, dropout_p
         )
+        #self.dummy = torch.cuda.FloatTensor([1]) #omer add dummy final layer
         self.classifier = nn.Linear(self.feature_dim, num_classes)
 
         self._init_params()
@@ -203,7 +205,7 @@ class MobileNetV2(nn.Module):
         f = self.featuremaps(x)
         v = self.global_avgpool(f)
         v = v.view(v.size(0), -1)
-
+        #v = v*self.dummy   # omer dummy layer
         if self.fc is not None:
             v = self.fc(v)
 

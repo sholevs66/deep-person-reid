@@ -6,14 +6,36 @@ import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-__all__ = ['squeezenet1_0', 'squeezenet1_1', 'squeezenet1_0_fc512']
+__all__ = ['squeezenet1_0', 'squeezenet1_1', 'squeezenet1_0_fc512', 'squeezenet1_1_se']
 
 model_urls = {
     'squeezenet1_0':
     'https://download.pytorch.org/models/squeezenet1_0-a815701f.pth',
     'squeezenet1_1':
     'https://download.pytorch.org/models/squeezenet1_1-f364aa15.pth',
+    'squeezenet1_1_se':
+    'https://download.pytorch.org/models/squeezenet1_1-f364aa15.pth',
 }
+
+
+class SE_Block(nn.Module):
+    "credits: https://github.com/moskomule/senet.pytorch/blob/master/senet/se_module.py#L4"
+    def __init__(self, c, r=16):
+        super().__init__()
+        self.squeeze = nn.AdaptiveAvgPool2d(1)
+        self.excitation = nn.Sequential(
+            nn.Linear(c, c // r, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(c // r, c, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        #import ipdb; ipdb.set_trace()
+        bs, c, _, _ = x.shape
+        y = self.squeeze(x).view(bs, c)
+        y = self.excitation(y).view(bs, c, 1, 1)
+        return x * y.expand_as(x)
 
 
 class Fire(nn.Module):
@@ -70,7 +92,7 @@ class SqueezeNet(nn.Module):
         self.loss = loss
         self.feature_dim = 512
 
-        if version not in [1.0, 1.1]:
+        if version not in [1.0, 1.1, 'se']:
             raise ValueError(
                 'Unsupported SqueezeNet version {version}:'
                 '1.0 or 1.1 expected'.format(version=version)
@@ -92,7 +114,7 @@ class SqueezeNet(nn.Module):
                 nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
                 Fire(512, 64, 256, 256),
             )
-        else:
+        elif version == 1.1:
             self.features = nn.Sequential(
                 nn.Conv2d(3, 64, kernel_size=3, stride=2),
                 nn.ReLU(inplace=True),
@@ -105,6 +127,25 @@ class SqueezeNet(nn.Module):
                 nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
                 Fire(256, 48, 192, 192),
                 Fire(384, 48, 192, 192),
+                Fire(384, 64, 256, 256),
+                Fire(512, 64, 256, 256),
+            )
+        else:
+            self.features = nn.Sequential(
+                nn.Conv2d(3, 64, kernel_size=3, stride=2),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
+                Fire(64, 16, 64, 64),
+                SE_Block(128),
+                Fire(128, 16, 64, 64),
+                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
+                Fire(128, 32, 128, 128),
+                SE_Block(256),
+                Fire(256, 32, 128, 128),
+                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
+                Fire(256, 48, 192, 192),
+                Fire(384, 48, 192, 192),
+                SE_Block(384),
                 Fire(384, 64, 256, 256),
                 Fire(512, 64, 256, 256),
             )
@@ -191,6 +232,7 @@ def init_pretrained_weights(model, model_url):
     
     Layers that don't match with pretrained layers in name or size are kept unchanged.
     """
+    #import ipdb; ipdb.set_trace()
     pretrain_dict = model_zoo.load_url(model_url, map_location=None)
     model_dict = model.state_dict()
     pretrain_dict = {
@@ -199,6 +241,80 @@ def init_pretrained_weights(model, model_url):
         if k in model_dict and model_dict[k].size() == v.size()
     }
     model_dict.update(pretrain_dict)
+    model.load_state_dict(model_dict)
+
+
+def init_pretrained_weights_se(model, model_url):
+    """Initializes model with pretrained weights.
+
+    Omer's EE version :)
+    Omer's EE version :)
+
+    Layers that don't match with pretrained layers in name or size are kept unchanged.
+    """
+    #import ipdb; ipdb.set_trace()
+    pretrain_dict = model_zoo.load_url(model_url, map_location=None)
+    model_dict = model.state_dict()
+
+    model_dict['features.0.weight'] = pretrain_dict['features.0.weight']
+    model_dict['features.0.bias'] = pretrain_dict['features.0.bias']
+
+    model_dict['features.3.squeeze.weight'] = pretrain_dict['features.3.squeeze.weight']
+    model_dict['features.3.squeeze.bias'] = pretrain_dict['features.3.squeeze.bias']
+    model_dict['features.3.expand1x1.weight'] = pretrain_dict['features.3.expand1x1.weight']
+    model_dict['features.3.expand1x1.bias'] = pretrain_dict['features.3.expand1x1.bias']
+    model_dict['features.3.expand3x3.weight'] = pretrain_dict['features.3.expand3x3.weight']
+    model_dict['features.3.expand3x3.bias'] = pretrain_dict['features.3.expand3x3.bias']
+
+    model_dict['features.5.squeeze.weight'] = pretrain_dict['features.4.squeeze.weight'] 
+    model_dict['features.5.squeeze.bias'] = pretrain_dict['features.4.squeeze.bias'] 
+    model_dict['features.5.expand1x1.weight'] = pretrain_dict['features.4.expand1x1.weight'] 
+    model_dict['features.5.expand1x1.bias'] = pretrain_dict['features.4.expand1x1.bias'] 
+    model_dict['features.5.expand3x3.weight'] = pretrain_dict['features.4.expand3x3.weight'] 
+    model_dict['features.5.expand3x3.bias'] = pretrain_dict['features.4.expand3x3.bias'] 
+
+    model_dict['features.7.squeeze.weight'] = pretrain_dict['features.6.squeeze.weight'] 
+    model_dict['features.7.squeeze.bias'] = pretrain_dict['features.6.squeeze.bias'] 
+    model_dict['features.7.expand1x1.weight'] = pretrain_dict['features.6.expand1x1.weight'] 
+    model_dict['features.7.expand1x1.bias'] = pretrain_dict['features.6.expand1x1.bias'] 
+    model_dict['features.7.expand3x3.weight'] = pretrain_dict['features.6.expand3x3.weight'] 
+    model_dict['features.7.expand3x3.bias'] = pretrain_dict['features.6.expand3x3.bias'] 
+
+    model_dict['features.9.squeeze.weight'] = pretrain_dict['features.7.squeeze.weight'] 
+    model_dict['features.9.squeeze.bias'] = pretrain_dict['features.7.squeeze.bias'] 
+    model_dict['features.9.expand1x1.weight'] = pretrain_dict['features.7.expand1x1.weight'] 
+    model_dict['features.9.expand1x1.bias'] = pretrain_dict['features.7.expand1x1.bias'] 
+    model_dict['features.9.expand3x3.weight'] = pretrain_dict['features.7.expand3x3.weight'] 
+    model_dict['features.9.expand3x3.bias'] = pretrain_dict['features.7.expand3x3.bias'] 
+
+    model_dict['features.11.squeeze.weight'] = pretrain_dict['features.9.squeeze.weight'] 
+    model_dict['features.11.squeeze.bias'] = pretrain_dict['features.9.squeeze.bias'] 
+    model_dict['features.11.expand1x1.weight'] = pretrain_dict['features.9.expand1x1.weight'] 
+    model_dict['features.11.expand1x1.bias'] = pretrain_dict['features.9.expand1x1.bias'] 
+    model_dict['features.11.expand3x3.weight'] = pretrain_dict['features.9.expand3x3.weight'] 
+    model_dict['features.11.expand3x3.bias'] = pretrain_dict['features.9.expand3x3.bias'] 
+
+    model_dict['features.12.squeeze.weight'] = pretrain_dict['features.10.squeeze.weight'] 
+    model_dict['features.12.squeeze.bias'] = pretrain_dict['features.10.squeeze.bias'] 
+    model_dict['features.12.expand1x1.weight'] = pretrain_dict['features.10.expand1x1.weight'] 
+    model_dict['features.12.expand1x1.bias'] = pretrain_dict['features.10.expand1x1.bias'] 
+    model_dict['features.12.expand3x3.weight'] = pretrain_dict['features.10.expand3x3.weight'] 
+    model_dict['features.12.expand3x3.bias'] = pretrain_dict['features.10.expand3x3.bias'] 
+
+    model_dict['features.14.squeeze.weight'] = pretrain_dict['features.11.squeeze.weight'] 
+    model_dict['features.14.squeeze.bias'] = pretrain_dict['features.11.squeeze.bias'] 
+    model_dict['features.14.expand1x1.weight'] = pretrain_dict['features.11.expand1x1.weight'] 
+    model_dict['features.14.expand1x1.bias'] = pretrain_dict['features.11.expand1x1.bias'] 
+    model_dict['features.14.expand3x3.weight'] = pretrain_dict['features.11.expand3x3.weight'] 
+    model_dict['features.14.expand3x3.bias'] = pretrain_dict['features.11.expand3x3.bias'] 
+
+    model_dict['features.15.squeeze.weight'] = pretrain_dict['features.12.squeeze.weight'] 
+    model_dict['features.15.squeeze.bias'] = pretrain_dict['features.12.squeeze.bias'] 
+    model_dict['features.15.expand1x1.weight'] = pretrain_dict['features.12.expand1x1.weight'] 
+    model_dict['features.15.expand1x1.bias'] = pretrain_dict['features.12.expand1x1.bias'] 
+    model_dict['features.15.expand3x3.weight'] = pretrain_dict['features.12.expand3x3.weight'] 
+    model_dict['features.15.expand3x3.bias'] = pretrain_dict['features.12.expand3x3.bias']
+
     model.load_state_dict(model_dict)
 
 
@@ -233,4 +349,12 @@ def squeezenet1_1(num_classes, loss='softmax', pretrained=True, **kwargs):
     )
     if pretrained:
         init_pretrained_weights(model, model_urls['squeezenet1_1'])
+    return model
+
+def squeezenet1_1_se(num_classes, loss='softmax', pretrained=True, **kwargs):
+    model = SqueezeNet(
+        num_classes, loss, version='se', fc_dims=None, dropout_p=None, **kwargs
+    )
+    if pretrained:
+        init_pretrained_weights_se(model, model_urls['squeezenet1_1'])
     return model

@@ -26,18 +26,18 @@ class TripletLoss(nn.Module):
             inputs (torch.Tensor): feature matrix with shape (batch_size, feat_dim).
             targets (torch.LongTensor): ground truth labels with shape (num_classes).
         """
-        n = inputs.size(0)
-
+        N = inputs.size(0)
+        #import ipdb; ipdb.set_trace()
         # Compute pairwise distance, replace by the official when merged
-        dist = torch.pow(inputs, 2).sum(dim=1, keepdim=True).expand(n, n)
+        dist = torch.pow(inputs, 2).sum(dim=1, keepdim=True).expand(N, N)
         dist = dist + dist.t()
         dist.addmm_(inputs, inputs.t(), beta=1, alpha=-2)
         dist = dist.clamp(min=1e-12).sqrt() # for numerical stability
 
         # For each anchor, find the hardest positive and negative
-        mask = targets.expand(n, n).eq(targets.expand(n, n).t())
+        mask = targets.expand(N, N).eq(targets.expand(N, N).t())
         dist_ap, dist_an = [], []
-        for i in range(n):
+        for i in range(N):
             dist_ap.append(dist[i][mask[i]].max().unsqueeze(0))
             dist_an.append(dist[i][mask[i] == 0].min().unsqueeze(0))
         dist_ap = torch.cat(dist_ap)

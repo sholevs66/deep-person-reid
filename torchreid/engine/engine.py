@@ -36,6 +36,7 @@ class Engine(object):
         self.model = None
         self.optimizer = None
         self.scheduler = None
+        self.model_name = None
 
         self._models = OrderedDict()
         self._optims = OrderedDict()
@@ -166,7 +167,7 @@ class Engine(object):
             )
 
         if test_only:
-            self.test(
+            rank1 = self.test(
                 dist_metric=dist_metric,
                 normalize_feature=normalize_feature,
                 visrank=visrank,
@@ -176,8 +177,8 @@ class Engine(object):
                 ranks=ranks,
                 rerank=rerank
             )
-            return
-
+            return rank1
+            
         if self.writer is None:
             self.writer = SummaryWriter(log_dir=save_dir)
 
@@ -226,6 +227,10 @@ class Engine(object):
         print('Elapsed {}'.format(elapsed))
         if self.writer is not None:
             self.writer.close()
+        
+        ################ omer's add #################
+        return rank1
+        #############################################
 
     def train(self, print_freq=10, fixbase_epoch=0, open_layers=None):
         losses = MetricMeter()
@@ -365,7 +370,17 @@ class Engine(object):
                 if self.use_gpu:
                     imgs = imgs.cuda()
                 end = time.time()
-                features = self.extract_features(imgs)
+
+                #import ipdb; ipdb.set_trace()
+
+                # if model is repvgg then, perform deploy before eval
+                if self.model_name[0:3] != 'rep':
+                    features = self.extract_features(imgs)
+                else:
+                    from torchreid.models.repvgg import repvgg_model_convert
+                    model_deploy = repvgg_model_convert(self.model)
+                    features = model_deploy(imgs)
+
                 batch_time.update(time.time() - end)
                 features = features.cpu().clone()
                 f_.append(features)
@@ -375,7 +390,6 @@ class Engine(object):
             pids_ = np.asarray(pids_)
             camids_ = np.asarray(camids_)
             return f_, pids_, camids_
-
         print('Extracting features from query set ...')
         qf, q_pids, q_camids = _feature_extraction(query_loader)
         print('Done, obtained {}-by-{} matrix'.format(qf.size(0), qf.size(1)))

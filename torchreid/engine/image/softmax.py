@@ -58,6 +58,7 @@ class ImageSoftmaxEngine(Engine):
         datamanager,
         model,
         optimizer,
+        model_name,
         scheduler=None,
         use_gpu=True,
         label_smooth=True
@@ -67,6 +68,7 @@ class ImageSoftmaxEngine(Engine):
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
+        self.model_name = model_name
         self.register_model('model', model, optimizer, scheduler)
 
         self.criterion = CrossEntropyLoss(
