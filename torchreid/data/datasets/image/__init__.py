@@ -7,6 +7,8 @@ from .viper import VIPeR
 from .cuhk01 import CUHK01
 from .cuhk02 import CUHK02
 from .cuhk03 import CUHK03
+from .cuhk03_omer import CUHK03_omer
+from .msmt17_omer import MSMT17_omer
 from .msmt17 import MSMT17
 from .cuhksysu import CUHKSYSU
 from .sensereid import SenseReID

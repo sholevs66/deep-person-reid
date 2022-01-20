@@ -187,6 +187,9 @@ class Engine(object):
         self.max_epoch = max_epoch
         print('=> Start training')
 
+        best_rank1 = 0
+        rank1_arr = []
+
         for self.epoch in range(self.start_epoch, self.max_epoch):
             self.train(
                 print_freq=print_freq,
@@ -207,7 +210,10 @@ class Engine(object):
                     use_metric_cuhk03=use_metric_cuhk03,
                     ranks=ranks
                 )
-                self.save_model(self.epoch, rank1, save_dir)
+                rank1_arr.append(rank1)
+                if rank1[0] > best_rank1:
+                    self.save_model(self.epoch, rank1[0], save_dir)
+                    best_rank1 = rank1[0]
 
         if self.max_epoch > 0:
             print('=> Final test')
@@ -220,7 +226,10 @@ class Engine(object):
                 use_metric_cuhk03=use_metric_cuhk03,
                 ranks=ranks
             )
-            self.save_model(self.epoch, rank1, save_dir)
+            rank1_arr.append(rank1)
+            if rank1[0] > best_rank1:
+                self.save_model(self.epoch, rank1[0], save_dir)
+                best_rank1 = rank1[0]
 
         elapsed = round(time.time() - time_start)
         elapsed = str(datetime.timedelta(seconds=elapsed))
@@ -229,7 +238,7 @@ class Engine(object):
             self.writer.close()
         
         ################ omer's add #################
-        return rank1
+        return best_rank1, rank1_arr
         #############################################
 
     def train(self, print_freq=10, fixbase_epoch=0, open_layers=None):
@@ -320,7 +329,7 @@ class Engine(object):
         """
         self.set_model_mode('eval')
         targets = list(self.test_loader.keys())
-
+        rank1_arr = []
         for name in targets:
             domain = 'source' if name in self.datamanager.sources else 'target'
             print('##### Evaluating {} ({}) #####'.format(name, domain))
@@ -339,12 +348,13 @@ class Engine(object):
                 ranks=ranks,
                 rerank=rerank
             )
+            rank1_arr.append(rank1)
 
             if self.writer is not None:
                 self.writer.add_scalar(f'Test/{name}/rank1', rank1, self.epoch)
                 self.writer.add_scalar(f'Test/{name}/mAP', mAP, self.epoch)
 
-        return rank1
+        return rank1_arr
 
     @torch.no_grad()
     def _evaluate(

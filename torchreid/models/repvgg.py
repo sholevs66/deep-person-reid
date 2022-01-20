@@ -192,6 +192,10 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
+        #self.inst2d_0 = nn.InstanceNorm2d(48)
+        #self.inst2d_1 = nn.InstanceNorm2d(48)
+        #self.inst2d_2 = nn.InstanceNorm2d(96)
+
         self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)
 
         self.classifier = nn.Linear(512, num_classes)
@@ -209,11 +213,14 @@ class RepVGG(nn.Module):
         return nn.Sequential(*blocks)
 
     def forward(self, x):
-        out = self.stage0(x)
-        out = self.stage1(out)
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.stage4(out)
+        out = self.stage0(x)        # out = [batch, 48, 128, 64]
+        #out = self.inst2d_0(out)    # omer add - instancenorm2d
+        out = self.stage1(out)      # out = [batch, 48, 64, 32]
+        #out = self.inst2d_1(out)    # omer add - instancenorm2d
+        out = self.stage2(out)      # out = [batch, 96, 32, 16]
+        #out = self.inst2d_2(out)    # omer add - instancenorm2d
+        out = self.stage3(out)      # out = [batch, 196, 16, 8]
+        out = self.stage4(out)      # out = [batch, 1280, 8, 4]
         out = self.gap(out)
         out = out.view(out.size(0), -1)
 
