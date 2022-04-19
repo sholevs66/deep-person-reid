@@ -3,9 +3,10 @@ import math
 import random
 from collections import deque
 import torch
+import numpy as np
 from PIL import Image
 from torchvision.transforms import (
-    Resize, Compose, ToTensor, Normalize, ColorJitter, RandomHorizontalFlip
+    Resize, Compose, ToTensor, Normalize, ColorJitter, RandomHorizontalFlip, ToPILImage
 )
 
 
@@ -230,9 +231,92 @@ class RandomPatch(object):
         return img
 
 
+class Resize_arp(torch.nn.Module):
+    def __init__(self, height=256, width=128):
+        super().__init__()
+        self.height = height
+        self.width = width
+    
+    def forward(self, img0):
+        input_height = img0.height
+        input_width = img0.width
+        
+        image_height_float = torch.FloatTensor([input_height])
+        image_width_float = torch.FloatTensor([input_width])
+
+        target_height_float = torch.FloatTensor([self.height])
+        target_width_float = torch.FloatTensor([self.width])
+
+        basic_ratio = target_width_float / target_height_float
+        real_ratio = image_width_float / image_height_float
+
+        if real_ratio >= basic_ratio:
+            aspect_ratio_factor = target_width_float / image_width_float
+        else:
+            aspect_ratio_factor = target_height_float / image_height_float
+            
+        new_height = (aspect_ratio_factor*image_height_float).int().cpu().numpy()[0]
+        new_width = (aspect_ratio_factor*image_width_float).int().cpu().numpy()[0]
+        
+        img0 = ToTensor()(img0) # PIL to tensor for resize & padding
+
+        resize = Resize((new_height, new_width))
+        image_resized = resize(img0)
+
+        padding_h = self.height - new_height
+        padding_w = self.width - new_width
+
+        padded_image = torch.nn.functional.pad(image_resized, (0, padding_w, 0, padding_h, 0, 0),  mode='constant', value=0.0)
+
+        padded_image = ToPILImage()(padded_image.squeeze_(0))   # tensor to PIL back
+        return padded_image
+
+
+# https://arxiv.org/ftp/arxiv/papers/2101/2101.08783.pdf
+class LGPR(object):
+
+    def __init__(self, probability=0.4, sl=0.02, sh=0.3, r1=0.3):
+        self.probability = probability
+        self.sl = sl
+        self.sh = sh
+        self.r1 = r1
+
+    def __call__(self, img):
+        
+        new = img.convert("L")
+        np_img = np.array(new, dtype=np.uint8)
+        img_gray = np.dstack([np_img, np_img, np_img])
+
+        if random.uniform(0, 1) >= self.probability:
+            return img
+        for attempt in range(100):
+            area = img.size[0] * img.size[1]
+            target_area = random.uniform(self.sl, self.sh) * area
+            aspect_ratio = random.uniform(self.r1, 1 / self.r1)
+
+            h = int(round(math.sqrt(target_area * aspect_ratio)))
+            w = int(round(math.sqrt(target_area / aspect_ratio)))
+
+            if w < img.size[1] and h < img.size[0]:
+                x1 = random.randint(0, img.size[0] - h)     # sample the x-location start
+                y1 = random.randint(0, img.size[1] - w)     # sample the y-location start
+                img = np.asarray(img).astype('float')
+
+                img[y1:y1 + h, x1:x1 + w, 0] = img_gray[y1:y1 + h, x1:x1 + w, 0]
+                img[y1:y1 + h, x1:x1 + w, 1] = img_gray[y1:y1 + h, x1:x1 + w, 1]
+                img[y1:y1 + h, x1:x1 + w, 2] = img_gray[y1:y1 + h, x1:x1 + w, 2]
+
+                img = Image.fromarray(img.astype('uint8'))
+
+                return img
+
+        return img
+
+
 def build_transforms(
     height,
     width,
+    apr,
     transforms='random_flip',
     norm_mean=[0.485, 0.456, 0.406],
     norm_std=[0.229, 0.224, 0.225],
@@ -274,7 +358,10 @@ def build_transforms(
     transform_tr = []
 
     print('+ resize to {}x{}'.format(height, width))
-    transform_tr += [Resize((height, width))]
+    if apr == False:
+        transform_tr += [Resize((height, width))] #original
+    else:
+        transform_tr += [Resize_arp(height=height, width=width)]
 
     if 'random_flip' in transforms:
         print('+ random flip')
@@ -300,6 +387,10 @@ def build_transforms(
             ColorJitter(brightness=0.2, contrast=0.15, saturation=0, hue=0)
         ]
 
+    if 'lgpr' in transforms:
+        print('+ LGPR')
+        transform_tr+=[LGPR()]
+
     print('+ to torch tensor of range [0, 1]')
     transform_tr += [ToTensor()]
 
@@ -317,10 +408,18 @@ def build_transforms(
     print('+ to torch tensor of range [0, 1]')
     print('+ normalization (mean={}, std={})'.format(norm_mean, norm_std))
 
-    transform_te = Compose([
-        Resize((height, width)),
-        ToTensor(),
-        normalize,
-    ])
-
+    if apr == False:
+        
+        #original
+        transform_te = Compose([
+            Resize((height, width)),
+            ToTensor(), normalize,
+        ])
+        
+    else:
+        transform_te = Compose([
+            Resize_arp(height=height, width=width),
+            ToTensor(), normalize,
+        ])
+    
     return transform_tr, transform_te

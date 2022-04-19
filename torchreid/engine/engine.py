@@ -7,6 +7,7 @@ from collections import OrderedDict
 import torch
 from torch.nn import functional as F
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.transforms import RandomHorizontalFlip
 
 from torchreid import metrics
 from torchreid.utils import (
@@ -211,6 +212,7 @@ class Engine(object):
                     ranks=ranks
                 )
                 rank1_arr.append(rank1)
+                np.save(save_dir + '/loss_arr.npy', np.asarray(rank1_arr))
                 if rank1[0] > best_rank1:
                     self.save_model(self.epoch, rank1[0], save_dir)
                     best_rank1 = rank1[0]
@@ -255,6 +257,7 @@ class Engine(object):
         self.num_batches = len(self.train_loader)
         end = time.time()
         for self.batch_idx, data in enumerate(self.train_loader):
+
             data_time.update(time.time() - end)
             loss_summary = self.forward_backward(data)
             batch_time.update(time.time() - end)
@@ -374,6 +377,8 @@ class Engine(object):
         batch_time = AverageMeter()
 
         def _feature_extraction(data_loader):
+            #tr_flip = RandomHorizontalFlip(p=1.0)   # for getting horizion flip image
+            #import ipdb; ipdb.set_trace()
             f_, pids_, camids_ = [], [], []
             for batch_idx, data in enumerate(data_loader):
                 imgs, pids, camids = self.parse_data_for_eval(data)
@@ -381,7 +386,7 @@ class Engine(object):
                     imgs = imgs.cuda()
                 end = time.time()
 
-                #import ipdb; ipdb.set_trace()
+                #import ipdb; ipdb.set_trace()      # for onnx here
 
                 # if model is repvgg then, perform deploy before eval
                 if self.model_name[0:3] != 'rep':
@@ -390,6 +395,8 @@ class Engine(object):
                     from torchreid.models.repvgg import repvgg_model_convert
                     model_deploy = repvgg_model_convert(self.model)
                     features = model_deploy(imgs)
+                    #features_flip = model_deploy(tr_flip(imgs))
+                    #features = (features + features_flip) / 2
 
                 batch_time.update(time.time() - end)
                 features = features.cpu().clone()
@@ -403,11 +410,10 @@ class Engine(object):
         print('Extracting features from query set ...')
         qf, q_pids, q_camids = _feature_extraction(query_loader)
         print('Done, obtained {}-by-{} matrix'.format(qf.size(0), qf.size(1)))
-
+        
         print('Extracting features from gallery set ...')
         gf, g_pids, g_camids = _feature_extraction(gallery_loader)
         print('Done, obtained {}-by-{} matrix'.format(gf.size(0), gf.size(1)))
-
         print('Speed: {:.4f} sec/batch'.format(batch_time.avg))
 
         if normalize_feature:
@@ -420,7 +426,6 @@ class Engine(object):
         )
         distmat = metrics.compute_distance_matrix(qf, gf, dist_metric)
         distmat = distmat.numpy()
-
         if rerank:
             print('Applying person re-ranking ...')
             distmat_qq = metrics.compute_distance_matrix(qf, qf, dist_metric)

@@ -294,7 +294,7 @@ class OSNet(nn.Module):
         blocks,
         layers,
         channels,
-        feature_dim=512,
+        feature_dim=1024,
         loss='softmax',
         IN=False,
         **kwargs
@@ -434,6 +434,8 @@ class OSNet(nn.Module):
             return y
         elif self.loss == 'triplet':
             return y, v
+        elif self.loss =='cosface':
+            return v
         else:
             raise KeyError("Unsupported loss: {}".format(self.loss))
 

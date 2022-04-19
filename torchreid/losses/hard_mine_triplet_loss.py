@@ -1,6 +1,7 @@
 from __future__ import division, absolute_import
 import torch
 import torch.nn as nn
+from ..metrics.distance import cosine_distance
 
 
 class TripletLoss(nn.Module):
@@ -15,9 +16,10 @@ class TripletLoss(nn.Module):
         margin (float, optional): margin for triplet. Default is 0.3.
     """
 
-    def __init__(self, margin=0.3):
+    def __init__(self, margin=0.3, distance='l2'):
         super(TripletLoss, self).__init__()
         self.margin = margin
+        self.distance = distance
         self.ranking_loss = nn.MarginRankingLoss(margin=margin)
 
     def forward(self, inputs, targets):
@@ -27,12 +29,16 @@ class TripletLoss(nn.Module):
             targets (torch.LongTensor): ground truth labels with shape (num_classes).
         """
         N = inputs.size(0)
-        #import ipdb; ipdb.set_trace()
         # Compute pairwise distance, replace by the official when merged
-        dist = torch.pow(inputs, 2).sum(dim=1, keepdim=True).expand(N, N)
-        dist = dist + dist.t()
-        dist.addmm_(inputs, inputs.t(), beta=1, alpha=-2)
-        dist = dist.clamp(min=1e-12).sqrt() # for numerical stability
+        if self.distance == 'l2':
+            dist = torch.pow(inputs, 2).sum(dim=1, keepdim=True).expand(N, N)
+            dist = dist + dist.t()
+            dist.addmm_(inputs, inputs.t(), beta=1, alpha=-2)
+            dist = dist.clamp(min=1e-12).sqrt() # for numerical stability
+        else:
+            dist = cosine_distance(inputs, inputs)
+            dist = dist.clamp(min=1e-12)
+
 
         # For each anchor, find the hardest positive and negative
         mask = targets.expand(N, N).eq(targets.expand(N, N).t())

@@ -31,7 +31,8 @@ class DataManager(object):
         transforms='random_flip',
         norm_mean=None,
         norm_std=None,
-        use_gpu=False
+        use_gpu=False,
+        apr=False
     ):
         self.sources = sources
         self.targets = targets
@@ -55,7 +56,8 @@ class DataManager(object):
             self.width,
             transforms=transforms,
             norm_mean=norm_mean,
-            norm_std=norm_std
+            norm_std=norm_std,
+            apr=apr
         )
 
         self.use_gpu = (torch.cuda.is_available() and use_gpu)
@@ -175,7 +177,8 @@ class ImageDataManager(DataManager):
         train_sampler_t='RandomSampler',
         cuhk03_labeled=False,
         cuhk03_classic_split=False,
-        market1501_500k=False
+        market1501_500k=False,
+        apr=False
     ):
 
         super(ImageDataManager, self).__init__(
@@ -186,7 +189,8 @@ class ImageDataManager(DataManager):
             transforms=transforms,
             norm_mean=norm_mean,
             norm_std=norm_std,
-            use_gpu=use_gpu
+            use_gpu=use_gpu,
+            apr=apr
         )
         print('=> Loading train (source) dataset')
         trainset = []

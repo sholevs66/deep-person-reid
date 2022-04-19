@@ -1,22 +1,20 @@
 from __future__ import division, print_function, absolute_import
 
 from torchreid import metrics
+from torchreid.losses import AngularPenaltySMLoss
 from torchreid.losses import TripletLoss, CrossEntropyLoss
 
 from ..engine import Engine
 
 
-class ImageTripletEngine(Engine):
-    r"""Triplet-loss engine for image-reid.
+class ImageArcFaceEngine(Engine):
+    r"""Softmax-loss engine for image-reid.
 
     Args:
         datamanager (DataManager): an instance of ``torchreid.data.ImageDataManager``
             or ``torchreid.data.VideoDataManager``.
         model (nn.Module): model instance.
         optimizer (Optimizer): an Optimizer.
-        margin (float, optional): margin for triplet loss. Default is 0.3.
-        weight_t (float, optional): weight for triplet loss. Default is 1.
-        weight_x (float, optional): weight for softmax loss. Default is 1.
         scheduler (LRScheduler, optional): if None, no learning rate decay will be performed.
         use_gpu (bool, optional): use gpu. Default is True.
         label_smooth (bool, optional): use label smoothing regularizer. Default is True.
@@ -30,14 +28,12 @@ class ImageTripletEngine(Engine):
             height=256,
             width=128,
             combineall=False,
-            batch_size=32,
-            num_instances=4,
-            train_sampler='RandomIdentitySampler' # this is important
+            batch_size=32
         )
         model = torchreid.models.build_model(
             name='resnet50',
             num_classes=datamanager.num_train_pids,
-            loss='triplet'
+            loss='softmax'
         )
         model = model.cuda()
         optimizer = torchreid.optim.build_optimizer(
@@ -48,13 +44,12 @@ class ImageTripletEngine(Engine):
             lr_scheduler='single_step',
             stepsize=20
         )
-        engine = torchreid.engine.ImageTripletEngine(
-            datamanager, model, optimizer, margin=0.3,
-            weight_t=0.7, weight_x=1, scheduler=scheduler
+        engine = torchreid.engine.ImageArcFaceEngine(
+            datamanager, model, optimizer, scheduler=scheduler
         )
         engine.run(
             max_epoch=60,
-            save_dir='log/resnet50-triplet-market1501',
+            save_dir='log/resnet50-softmax-market1501',
             print_freq=10
         )
     """
@@ -65,31 +60,30 @@ class ImageTripletEngine(Engine):
         model,
         optimizer,
         model_name,
-        margin=0.3,
-        weight_t=1,
-        weight_x=1,
-        distance='l2',
         scheduler=None,
         use_gpu=True,
-        label_smooth=True
+        label_smooth=True,
+        loss_type='arcface',
+        weight_t=0,
+        distance='cosine',
+        margin=0.3
     ):
-        super(ImageTripletEngine, self).__init__(datamanager, use_gpu)
+        super(ImageArcFaceEngine, self).__init__(datamanager, use_gpu)
 
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.model_name = model_name
         self.register_model('model', model, optimizer, scheduler)
-        assert weight_t >= 0 and weight_x >= 0
-        assert weight_t + weight_x > 0
-        self.weight_t = weight_t
-        self.weight_x = weight_x
-
         self.criterion_t = TripletLoss(margin=margin, distance=distance)
-        self.criterion_x = CrossEntropyLoss(
-            num_classes=self.datamanager.num_train_pids,
+        self.weight_t = weight_t
+        if weight_t > 0:
+            self.scheduler = 'RandomIdentitySampler'
+        self.criterion = AngularPenaltySMLoss(
+            in_features=self.model.fc.out_features,  #1280 self.model.fc.out_features
+            out_features=self.datamanager.num_train_pids,
             use_gpu=self.use_gpu,
-            label_smooth=label_smooth
+            loss_type=loss_type
         )
 
     def forward_backward(self, data):
@@ -98,27 +92,25 @@ class ImageTripletEngine(Engine):
         if self.use_gpu:
             imgs = imgs.cuda()
             pids = pids.cuda()
-        
-        outputs, features = self.model(imgs)
 
-        loss = 0
+        outputs = self.model(imgs)
+
         loss_summary = {}
 
+        loss = self.compute_loss(self.criterion, outputs, pids)
+
+        # add triplet
         if self.weight_t > 0:
-            loss_t = self.compute_loss(self.criterion_t, features, pids)
+            loss_t = self.compute_loss(self.criterion_t, outputs, pids)
             loss += self.weight_t * loss_t
             loss_summary['loss_t'] = loss_t.item()
-
-        if self.weight_x > 0:
-            loss_x = self.compute_loss(self.criterion_x, outputs, pids)
-            loss += self.weight_x * loss_x
-            loss_summary['loss_x'] = loss_x.item()
-            loss_summary['acc'] = metrics.accuracy(outputs, pids)[0].item()
-
-        assert loss_summary
+        
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        loss_summary['loss_c'] = loss.item()
+        #loss_summary = {'loss': loss.item()}
 
         return loss_summary

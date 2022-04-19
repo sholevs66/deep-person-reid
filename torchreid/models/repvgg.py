@@ -3,32 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 import torch
 import copy
-#from se_block import SEBlock
 
-class SEBlock(nn.Module):
-
-    def __init__(self, input_channels, internal_neurons):
-        super(SEBlock, self).__init__()
-        self.down = nn.Conv2d(in_channels=input_channels, out_channels=internal_neurons, kernel_size=1, stride=1, bias=True)
-        self.up = nn.Conv2d(in_channels=internal_neurons, out_channels=input_channels, kernel_size=1, stride=1, bias=True)
-        self.input_channels = input_channels
-
-    def forward(self, inputs):
-        #import ipdb; ipdb.set_trace()
-        # x = F.avg_pool2d(inputs, kernel_size=inputs.size(3)) # original code
-        x = F.avg_pool2d(inputs, kernel_size=(inputs.size(2), inputs.size(3)))
-        x = self.down(x)
-        x = F.relu(x)
-        x = self.up(x)
-        x = torch.sigmoid(x)
-        #x = x.view(-1, self.input_channels, 1, 1) # original code - wrong?
-        if x.size(2) == 1:
-            x = x.view(-1, self.input_channels, 1, 1) # original code - wrong?
-            x = x.expand_as(inputs)                   # omer add
-        else:
-            x = x.repeat_interleave(inputs.size(3),3)
-            x = x.repeat_interleave(inputs.size(3),2)
-        return inputs * x
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -192,11 +167,9 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
-        #self.inst2d_0 = nn.InstanceNorm2d(48)
-        #self.inst2d_1 = nn.InstanceNorm2d(48)
-        #self.inst2d_2 = nn.InstanceNorm2d(96)
+        self.inst2d_input = nn.InstanceNorm2d(3)
 
-        self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)
+        self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface/arcface
 
         self.classifier = nn.Linear(512, num_classes)
 
@@ -213,29 +186,35 @@ class RepVGG(nn.Module):
         return nn.Sequential(*blocks)
 
     def forward(self, x):
+        #x = self.inst2d_input(x)    # add - instancenorm2d
         out = self.stage0(x)        # out = [batch, 48, 128, 64]
-        #out = self.inst2d_0(out)    # omer add - instancenorm2d
         out = self.stage1(out)      # out = [batch, 48, 64, 32]
-        #out = self.inst2d_1(out)    # omer add - instancenorm2d
         out = self.stage2(out)      # out = [batch, 96, 32, 16]
-        #out = self.inst2d_2(out)    # omer add - instancenorm2d
         out = self.stage3(out)      # out = [batch, 196, 16, 8]
         out = self.stage4(out)      # out = [batch, 1280, 8, 4]
         out = self.gap(out)
         out = out.view(out.size(0), -1)
 
         if self.fc is not None:
+            #self.fc.weight.data = F.normalize(self.fc.weight.data, p=2, dim=1)
+            #out = F.normalize(out, p=2, dim=1)
             out = self.fc(out)
 
         if not self.training:
             return out
         
-        y = self.classifier(out)
-
         if self.loss == 'softmax':
+            y = self.classifier(out)
             return y
         elif self.loss == 'triplet':
+            y = self.classifier(out)
             return y, out
+        elif self.loss == 'arcface':
+            return out
+        elif self.loss == 'sphereface':
+            return out
+        elif self.loss == 'cosface':
+            return out
         else:
             raise KeyError('Unsupported loss: {}'.format(self.loss))
 
@@ -254,9 +233,9 @@ def create_RepVGG_A1(deploy=False):
     return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=1000,
                   width_multiplier=[1, 1, 1, 2.5], override_groups_map=None, deploy=deploy)
 
-def create_RepVGG_A2(deploy=False):
-    return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=1000,
-                  width_multiplier=[1.5, 1.5, 1.5, 2.75], override_groups_map=None, deploy=deploy)
+def create_RepVGG_A2(num_classes, loss, deploy=False, use_se=False):
+    return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
+                  width_multiplier=[1.5, 1.5, 1.5, 2.75], override_groups_map=None, deploy=deploy, use_se=use_se)
 
 def create_RepVGG_B0(deploy=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,

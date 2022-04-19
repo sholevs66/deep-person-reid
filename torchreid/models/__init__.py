@@ -63,6 +63,7 @@ __model_factory = {
     'shufflenet_v2_x2_0': shufflenet_v2_x2_0,
     #repvgg models (omer)
     'repvgg_a0' : create_RepVGG_A0,
+    'repvgg_a2' : create_RepVGG_A2,
     # reid-specific models
     'mudeep': MuDeep,
     'resnet50mid': resnet50mid,
@@ -131,7 +132,10 @@ def build_model(
         if pretrained == True:
             #train_model.load_state_dict(torch.load('./models/RepVGG-A0-train.pth'))
             #pretrain_dict = model_zoo.load_url(model_url, map_location=None)
-            pretrain_dict = torch.load('./models/RepVGG-A0-train.pth')
+            if name == 'repvgg_a0':
+                pretrain_dict = torch.load('./models/RepVGG-A0-train.pth')
+            elif name == 'repvgg_a2':
+                pretrain_dict = torch.load('./models/RepVGG-A2-train.pth')
             model_dict = model.state_dict()
             pretrain_dict = {
                 k: v
