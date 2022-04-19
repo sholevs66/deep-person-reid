@@ -377,16 +377,12 @@ class Engine(object):
         batch_time = AverageMeter()
 
         def _feature_extraction(data_loader):
-            #tr_flip = RandomHorizontalFlip(p=1.0)   # for getting horizion flip image
-            #import ipdb; ipdb.set_trace()
             f_, pids_, camids_ = [], [], []
             for batch_idx, data in enumerate(data_loader):
                 imgs, pids, camids = self.parse_data_for_eval(data)
                 if self.use_gpu:
                     imgs = imgs.cuda()
                 end = time.time()
-
-                #import ipdb; ipdb.set_trace()      # for onnx here
 
                 # if model is repvgg then, perform deploy before eval
                 if self.model_name[0:3] != 'rep':
@@ -395,8 +391,6 @@ class Engine(object):
                     from torchreid.models.repvgg import repvgg_model_convert
                     model_deploy = repvgg_model_convert(self.model)
                     features = model_deploy(imgs)
-                    #features_flip = model_deploy(tr_flip(imgs))
-                    #features = (features + features_flip) / 2
 
                 batch_time.update(time.time() - end)
                 features = features.cpu().clone()
