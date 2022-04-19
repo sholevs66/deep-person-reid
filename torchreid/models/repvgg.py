@@ -167,8 +167,6 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
-        self.inst2d_input = nn.InstanceNorm2d(3)
-
         self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface/arcface
 
         self.classifier = nn.Linear(512, num_classes)
@@ -186,7 +184,6 @@ class RepVGG(nn.Module):
         return nn.Sequential(*blocks)
 
     def forward(self, x):
-        #x = self.inst2d_input(x)    # add - instancenorm2d
         out = self.stage0(x)        # out = [batch, 48, 128, 64]
         out = self.stage1(out)      # out = [batch, 48, 64, 32]
         out = self.stage2(out)      # out = [batch, 96, 32, 16]
@@ -196,8 +193,6 @@ class RepVGG(nn.Module):
         out = out.view(out.size(0), -1)
 
         if self.fc is not None:
-            #self.fc.weight.data = F.normalize(self.fc.weight.data, p=2, dim=1)
-            #out = F.normalize(out, p=2, dim=1)
             out = self.fc(out)
 
         if not self.training:

@@ -238,10 +238,8 @@ class Engine(object):
         print('Elapsed {}'.format(elapsed))
         if self.writer is not None:
             self.writer.close()
-        
-        ################ omer's add #################
-        return best_rank1, rank1_arr
-        #############################################
+
+        return rank1_arr
 
     def train(self, print_freq=10, fixbase_epoch=0, open_layers=None):
         losses = MetricMeter()

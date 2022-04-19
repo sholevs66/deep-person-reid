@@ -44,14 +44,7 @@ class AngularPenaltySMLoss(nn.Module):
         assert len(x) == len(labels)
         assert torch.min(labels) >= 0
         assert torch.max(labels) < self.out_features
-        
-        '''
-        #This is original before me chanigng in repvgg
-        '''
-        # original, doesn't work
-        #for W in self.fc.parameters():
-        #    W = F.normalize(W, p=2, dim=1)
-        
+                
         self.fc.weight.data = F.normalize(self.fc.weight.data, p=2, dim=1)
         x = F.normalize(x, p=2, dim=1)
 
@@ -70,26 +63,3 @@ class AngularPenaltySMLoss(nn.Module):
             L = L.cuda()
 
         return -torch.mean(L)
-        
-
-        '''
-        # omer version - without embedding layer in the model
-        if self.loss_type == 'cosface':
-            numerator = self.s * (torch.diagonal(x.transpose(0, 1)[labels]) - self.m)
-        if self.loss_type == 'arcface':
-            numerator = self.s * torch.cos(torch.acos(torch.clamp(torch.diagonal(x.transpose(0, 1)[labels]), -1.+self.eps, 1-self.eps)) + self.m)
-        if self.loss_type == 'sphereface':
-            numerator = self.s * torch.cos(self.m * torch.acos(torch.clamp(torch.diagonal(x.transpose(0, 1)[labels]), -1.+self.eps, 1-self.eps)))
-
-        excl = torch.cat([torch.cat((x[i, :y], x[i, y+1:])).unsqueeze(0) for i, y in enumerate(labels)], dim=0)
-        denominator = torch.exp(numerator) + torch.sum(torch.exp(self.s * excl), dim=1)
-        L = numerator - torch.log(denominator)
-        if self.use_gpu:
-            L = L.cuda()
-        
-        return -torch.mean(L)
-        '''
-        
-        
-        
-        
