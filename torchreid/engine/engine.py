@@ -383,7 +383,7 @@ class Engine(object):
                 end = time.time()
 
                 # if model is repvgg then, perform deploy before eval
-                if self.model_name[0:3] != 'rep':
+                if not hasattr(self.model, 'deploy'):
                     features = self.extract_features(imgs)
                 else:
                     from torchreid.models.repvgg import repvgg_model_convert

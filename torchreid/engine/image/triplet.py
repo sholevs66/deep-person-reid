@@ -64,7 +64,6 @@ class ImageTripletEngine(Engine):
         datamanager,
         model,
         optimizer,
-        model_name,
         margin=0.3,
         weight_t=1,
         weight_x=1,
@@ -78,7 +77,6 @@ class ImageTripletEngine(Engine):
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.model_name = model_name
         self.register_model('model', model, optimizer, scheduler)
         assert weight_t >= 0 and weight_x >= 0
         assert weight_t + weight_x > 0

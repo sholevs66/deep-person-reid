@@ -120,28 +120,9 @@ def build_model(
             'Unknown model: {}. Must be one of {}'.format(name, avai_models)
         )
 
-    if name[0:3] != 'rep':
-        return __model_factory[name](
-            num_classes=num_classes,
-            loss=loss,
-            pretrained=pretrained,
-            use_gpu=use_gpu
+    return __model_factory[name](
+        num_classes=num_classes,
+        loss=loss,
+        pretrained=pretrained,
+        use_gpu=use_gpu
         )
-    else:
-        model = __model_factory[name](num_classes=num_classes, loss=loss, deploy=False, use_se=use_se)
-        if pretrained == True:
-            #train_model.load_state_dict(torch.load('./models/RepVGG-A0-train.pth'))
-            #pretrain_dict = model_zoo.load_url(model_url, map_location=None)
-            if name == 'repvgg_a0':
-                pretrain_dict = torch.load('./models/RepVGG-A0-train.pth')
-            elif name == 'repvgg_a2':
-                pretrain_dict = torch.load('./models/RepVGG-A2-train.pth')
-            model_dict = model.state_dict()
-            pretrain_dict = {
-                k: v
-                for k, v in pretrain_dict.items()
-                if k in model_dict and model_dict[k].size() == v.size()
-            }
-            model_dict.update(pretrain_dict)
-            model.load_state_dict(model_dict)
-            return model

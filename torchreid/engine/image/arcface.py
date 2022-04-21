@@ -59,7 +59,6 @@ class ImageArcFaceEngine(Engine):
         datamanager,
         model,
         optimizer,
-        model_name,
         scheduler=None,
         use_gpu=True,
         label_smooth=True,
@@ -73,7 +72,6 @@ class ImageArcFaceEngine(Engine):
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.model_name = model_name
         self.register_model('model', model, optimizer, scheduler)
         self.criterion_t = TripletLoss(margin=margin, distance=distance)
         self.weight_t = weight_t

@@ -167,9 +167,9 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
-        self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface
+        self.fc = nn.Linear(int(512 * width_multiplier[3]), 2048)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface
 
-        self.classifier = nn.Linear(512, num_classes)
+        self.classifier = nn.Linear(2048, num_classes)
 
 
     def _make_stage(self, planes, num_blocks, stride):
@@ -220,9 +220,24 @@ optional_groupwise_layers = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]
 g2_map = {l: 2 for l in optional_groupwise_layers}
 g4_map = {l: 4 for l in optional_groupwise_layers}
 
-def create_RepVGG_A0(num_classes, loss, deploy=False, use_se=False):
-    return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
+
+def init_pretrained_weights(model, path):
+    pretrain_dict = torch.load(path)
+    model_dict = model.state_dict()
+    pretrain_dict = {
+        k: v
+        for k, v in pretrain_dict.items()
+        if k in model_dict and model_dict[k].size() == v.size()
+    }
+    model_dict.update(pretrain_dict)
+    model.load_state_dict(model_dict)
+
+def create_RepVGG_A0(num_classes, loss, pretrained=True, use_gpu=True, deploy=False, use_se=False):
+    model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
                   width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se)
+    if pretrained:
+        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
+    return model
 
 def create_RepVGG_A1(deploy=False):
     return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=1000,
