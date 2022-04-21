@@ -167,7 +167,7 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
-        self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface/arcface
+        self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface
 
         self.classifier = nn.Linear(512, num_classes)
 
