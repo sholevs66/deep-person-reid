@@ -77,8 +77,12 @@ class ImageArcFaceEngine(Engine):
         self.weight_t = weight_t
         if weight_t > 0:
             self.scheduler = 'RandomIdentitySampler'
+        if hasattr(self.model, 'module'):
+            in_features = self.model.module.fc.out_features
+        else:
+            in_features = self.model.fc.out_features
         self.criterion = AngularPenaltySMLoss(
-            in_features=self.model.fc.out_features,  #1280 self.model.fc.out_features
+            in_features=in_features,
             out_features=self.datamanager.num_train_pids,
             use_gpu=self.use_gpu,
             loss_type=loss_type

@@ -36,7 +36,7 @@ def build_engine(cfg, datamanager, model, optimizer, scheduler):
                 label_smooth=cfg.loss.softmax.label_smooth
             )
 
-        else:
+        elif cfg.loss.name == 'triplet':
             engine = torchreid.engine.ImageTripletEngine(
                 datamanager,
                 model,
@@ -48,6 +48,15 @@ def build_engine(cfg, datamanager, model, optimizer, scheduler):
                 use_gpu=cfg.use_gpu,
                 label_smooth=cfg.loss.softmax.label_smooth
             )
+
+        else:
+            engine = torchreid.engine.ImageArcFaceEngine(
+                datamanager,
+                model,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                loss_type=cfg.loss.name,
+                weight_t=cfg.loss.triplet.weight_t)
 
     else:
         if cfg.loss.name == 'softmax':
@@ -183,6 +192,7 @@ def main():
     print(
         'Building {}-engine for {}-reid'.format(cfg.loss.name, cfg.data.type)
     )
+
     engine = build_engine(cfg, datamanager, model, optimizer, scheduler)
     engine.run(**engine_run_kwargs(cfg))
 
