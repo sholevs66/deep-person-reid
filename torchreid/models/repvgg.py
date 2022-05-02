@@ -144,7 +144,7 @@ class RepVGGBlock(nn.Module):
 
 class RepVGG(nn.Module):
 
-    def __init__(self, num_blocks, num_classes=1000, loss='softmax', width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
+    def __init__(self, num_blocks, num_classes=1000, loss='softmax', width_multiplier=None, override_groups_map=None, deploy=False, use_se=False, emb_dim=512):
         super(RepVGG, self).__init__()
 
         self.loss = loss
@@ -167,9 +167,9 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
-        self.fc = nn.Linear(int(512 * width_multiplier[3]), 512)   # self.fc = nn.Linear(int(512 * width_multiplier[3]), 512) # when not cosface
+        self.fc = nn.Linear(int(512 * width_multiplier[3]), emb_dim)
 
-        self.classifier = nn.Linear(512, num_classes)
+        self.classifier = nn.Linear(emb_dim, num_classes)
 
 
     def _make_stage(self, planes, num_blocks, stride):
@@ -235,6 +235,20 @@ def init_pretrained_weights(model, path):
 def create_RepVGG_A0(num_classes, loss, pretrained=True, use_gpu=True, deploy=False, use_se=False):
     model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
                   width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se)
+    if pretrained:
+        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
+    return model
+
+def create_RepVGG_A0_512(num_classes, loss, pretrained=True, use_gpu=True, deploy=False, use_se=False):
+    model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
+                  width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se, emb_dim=512)
+    if pretrained:
+        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
+    return model
+
+def create_RepVGG_A0_2048(num_classes, loss, pretrained=True, use_gpu=True, deploy=False, use_se=False):
+    model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
+                  width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se, emb_dim=2048)
     if pretrained:
         init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
     return model

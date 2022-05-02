@@ -63,6 +63,8 @@ __model_factory = {
     'shufflenet_v2_x2_0': shufflenet_v2_x2_0,
     #repvgg models (omer)
     'repvgg_a0' : create_RepVGG_A0,
+    'repvgg_a0_512' : create_RepVGG_A0_512,
+    'repvgg_a0_2048' : create_RepVGG_A0_2048,
     'repvgg_a2' : create_RepVGG_A2,
     # reid-specific models
     'mudeep': MuDeep,

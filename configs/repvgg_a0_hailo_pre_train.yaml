@@ -1,0 +1,37 @@
+model:
+  name: 'repvgg_a0_512'
+  pretrained: False
+  load_weights: './models/repvgg_a0_person_reid_512.pth'
+
+data:
+  type: 'image'
+  sources: ['market1501']
+  targets: ['market1501']
+  height: 256
+  width: 128
+  combineall: False
+  norm_mean: [0.4364566 , 0.40887514, 0.4093984]
+  norm_std: [0.25174066, 0.24528353, 0.23656533]
+  transforms: ['random_flip', 'random_crop']
+  save_dir: 'log/repvgg_a0_512'
+
+loss:
+  name: 'softmax'
+  softmax:
+    label_smooth: True
+
+train:
+  optim: 'amsgrad'
+  lr: 0.001
+  max_epoch: 300
+  batch_size: 64
+  fixbase_epoch: 10
+  open_layers: ['classifier']
+  lr_scheduler: 'cosine'
+
+test:
+  batch_size: 128
+  dist_metric: 'cosine'
+  normalize_feature: False
+  evaluate: True
+  eval_freq: 2
