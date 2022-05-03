@@ -295,46 +295,6 @@ class Dataset(object):
         """Transforms a raw image (img0) k_tfm times with
         the transform function tfm.
         """
-        '''
-        ##################### Omer adding aspect ration perserving reshape
-        from torchvision.transforms import Resize
-
-        height=256
-        width=128
-
-        input_height = img0.height
-        input_width = img0.width
-
-        image_height_float = torch.FloatTensor([input_height])
-        image_width_float = torch.FloatTensor([input_width])
-
-        target_height_float = torch.FloatTensor([height])
-        target_width_float = torch.FloatTensor([width])
-
-        basic_ratio = target_width_float / target_height_float
-        real_ratio = image_width_float / image_height_float
-
-        if real_ratio >= basic_ratio:
-            aspect_ratio_factor = target_width_float / image_width_float
-        else:
-            aspect_ratio_factor = target_height_float / image_height_float
-            
-        new_height = (aspect_ratio_factor*image_height_float).int().cpu().numpy()[0]
-        new_width = (aspect_ratio_factor*image_width_float).int().cpu().numpy()[0]
-
-        resize = Resize((new_height, new_width))
-        image_resized = resize(img0)
-        
-        image_resized = np.asarray(image_resized)
-
-        padding_h = height - new_height
-        padding_w = width - new_width
-
-        padded_image = torch.nn.functional.pad(image_resized, (0, padding_h, 0, padding_w, 0, 0),  mode='constant', value=0.0)
-        
-        img0 = padded_image
-        ########################################################################
-        '''
         img_list = []
         for k in range(k_tfm):
             img_list.append(tfm(img0))
