@@ -179,7 +179,7 @@ class Engine(object):
                 rerank=rerank
             )
             return rank1
-            
+
         if self.writer is None:
             self.writer = SummaryWriter(log_dir=save_dir)
 
