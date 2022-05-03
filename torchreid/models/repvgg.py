@@ -5,11 +5,13 @@ import torch
 import copy
 import os
 import gdown
+from .se_block import SEBlock
 
 
 pretrained_urls = {
     'repvgg_a0':
     'https://drive.google.com/uc?id=13Gn8rq1PztoMEgK7rCOPMUYHjGzk-w11'}
+
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
