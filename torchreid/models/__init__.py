@@ -56,6 +56,7 @@ __model_factory = {
     'squeezenet1_0': squeezenet1_0,
     'squeezenet1_0_fc512': squeezenet1_0_fc512,
     'squeezenet1_1': squeezenet1_1,
+    'squeezenet1_1_se': squeezenet1_1_se,
     'shufflenet_v2_x0_5': shufflenet_v2_x0_5,
     'shufflenet_v2_x1_0': shufflenet_v2_x1_0,
     'shufflenet_v2_x1_5': shufflenet_v2_x1_5,
