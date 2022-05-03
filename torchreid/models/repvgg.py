@@ -3,6 +3,8 @@ import torch.nn.functional as F
 import numpy as np
 import torch
 import copy
+import os
+import gdown
 
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
@@ -222,6 +224,10 @@ g4_map = {l: 4 for l in optional_groupwise_layers}
 
 
 def init_pretrained_weights(model, path):
+
+    if not os.path.exists(path):
+        gdown.download('https://drive.google.com/uc?id=13Gn8rq1PztoMEgK7rCOPMUYHjGzk-w11', path)
+
     pretrain_dict = torch.load(path)
     model_dict = model.state_dict()
     pretrain_dict = {
