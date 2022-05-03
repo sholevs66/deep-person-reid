@@ -294,7 +294,7 @@ class OSNet(nn.Module):
         blocks,
         layers,
         channels,
-        feature_dim=1024,
+        feature_dim=512,
         loss='softmax',
         IN=False,
         **kwargs

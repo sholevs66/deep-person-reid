@@ -7,6 +7,10 @@ import os
 import gdown
 
 
+pretrained_urls = {
+    'repvgg_a0':
+    'https://drive.google.com/uc?id=13Gn8rq1PztoMEgK7rCOPMUYHjGzk-w11'}
+
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
     result.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
@@ -223,10 +227,10 @@ g2_map = {l: 2 for l in optional_groupwise_layers}
 g4_map = {l: 4 for l in optional_groupwise_layers}
 
 
-def init_pretrained_weights(model, path):
+def init_pretrained_weights(model, path, key):
 
     if not os.path.exists(path):
-        gdown.download('https://drive.google.com/uc?id=13Gn8rq1PztoMEgK7rCOPMUYHjGzk-w11', path)
+        gdown.download(pretrained_urls[key], path)
 
     pretrain_dict = torch.load(path)
     model_dict = model.state_dict()
@@ -242,21 +246,21 @@ def create_RepVGG_A0(num_classes, loss, pretrained=True, use_gpu=True, deploy=Fa
     model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
                   width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se)
     if pretrained:
-        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
+        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth', key='repvgg_a0')     
     return model
 
 def create_RepVGG_A0_512(num_classes, loss, pretrained=True, use_gpu=True, deploy=False, use_se=False):
     model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
                   width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se, emb_dim=512)
     if pretrained:
-        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
+        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth', key='repvgg_a0')     
     return model
 
 def create_RepVGG_A0_2048(num_classes, loss, pretrained=True, use_gpu=True, deploy=False, use_se=False):
     model = RepVGG(num_blocks=[2, 4, 14, 1], num_classes=num_classes, loss=loss,
                   width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_se=use_se, emb_dim=2048)
     if pretrained:
-        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth')     
+        init_pretrained_weights(model, path='./models/RepVGG-A0-train.pth', key='repvgg_a0')     
     return model
 
 def create_RepVGG_A1(deploy=False):

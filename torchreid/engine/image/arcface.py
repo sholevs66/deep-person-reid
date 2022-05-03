@@ -113,6 +113,5 @@ class ImageArcFaceEngine(Engine):
         self.optimizer.step()
 
         loss_summary['loss_c'] = loss.item()
-        #loss_summary = {'loss': loss.item()}
 
         return loss_summary
